@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>연천군 농업정책과 직원 간편조사</title>
+  <style>
+    :root{--bg:#f6f7f9;--card:#fff;--text:#17202a;--muted:#6b7280;--line:#e5e7eb;--accent:#1f6feb;--danger:#c62828}
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{max-width:860px;margin:0 auto;padding:18px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+    h1,h2,h3{margin:0}.sub{color:var(--muted);font-size:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.grow{flex:1}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    @media(max-width:640px){.grid{grid-template-columns:1fr}.wrap{padding:12px}.top{align-items:flex-start}}
+    button,.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:11px 14px;font-size:15px;cursor:pointer;min-height:44px}
+    button.primary,.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}.danger{color:var(--danger)}
+    input,select,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:16px;background:#fff}
+    label{display:block;font-size:14px;font-weight:700;margin-bottom:6px}.field{margin-bottom:12px}.hidden{display:none!important}
+    .pill{display:inline-block;padding:5px 9px;border-radius:999px;background:#eef4ff;font-size:13px}.list{display:flex;flex-direction:column;gap:8px}
+    .item{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding:10px 0}
+    .stat{font-size:26px;font-weight:800}.muted{color:var(--muted)}.ok{color:#137333}.err{color:var(--danger)}
+    .option{display:block;border:1px solid var(--line);border-radius:10px;padding:11px;margin:8px 0}.option input{width:auto;margin-right:8px}
+    table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid var(--line);padding:9px 7px;font-size:14px}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tabs button.active{background:#eef4ff;border-color:#b7cff7;font-weight:700}
+    .notice{padding:10px 12px;border-radius:10px;background:#fff8e1;font-size:14px}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><h1>농업정책과 직원 간편조사</h1><div class="sub">필요할 때 만들고, 링크로 받고, 바로 취합</div></div>
+    <button id="adminEntryBtn">관리자</button>
+  </div>
+
+  <div id="message" class="hidden card"></div>
+
+  <section id="staffSection">
+    <div id="surveyLanding" class="card">
+      <h2 id="surveyTitle">조사 링크를 열어주세요</h2>
+      <p id="surveyDesc" class="muted">관리자가 공유한 링크로 접속하면 조사가 표시됩니다.</p>
+      <div id="surveyClosed" class="notice hidden">현재 응답할 수 없는 조사입니다.</div>
+    </div>
+
+    <form id="responseForm" class="card hidden">
+      <div class="grid">
+        <div class="field">
+          <label for="teamSelect">소속 팀</label>
+          <select id="teamSelect"></select>
+        </div>
+        <div class="field">
+          <label for="employeeSelect">이름</label>
+          <select id="employeeSelect"></select>
+        </div>
+      </div>
+      <div id="questionsBox"></div>
+      <button class="primary" type="submit">응답 제출</button>
+    </form>
+
+    <div id="responseDone" class="card hidden">
+      <h2>응답 완료</h2>
+      <p class="muted">같은 이름으로 다시 제출하면 기존 응답이 수정됩니다.</p>
+    </div>
+  </section>
+
+  <section id="adminSection" class="hidden">
+    <div id="loginCard" class="card">
+      <h2>관리자 로그인</h2>
+      <div class="field"><label>이메일</label><input id="adminEmail" type="email" autocomplete="username"></div>
+      <div class="field"><label>비밀번호</label><input id="adminPassword" type="password" autocomplete="current-password"></div>
+      <button id="loginBtn" class="primary">로그인</button>
+      <button id="backStaffBtn">직원 화면</button>
+    </div>
+
+    <div id="adminApp" class="hidden">
+      <div class="tabs">
+        <button data-tab="dashboard" class="active">현황</button>
+        <button data-tab="employees">직원 관리</button>
+        <button data-tab="newSurvey">새 조사</button>
+        <button id="logoutBtn">로그아웃</button>
+      </div>
+
+      <div id="tab-dashboard" class="tabpane">
+        <div class="grid">
+          <div class="card"><div class="muted">현재 직원</div><div id="adminEmployeeCount" class="stat">0명</div></div>
+          <div class="card"><div class="muted">진행 중 조사</div><div id="adminSurveyCount" class="stat">0건</div></div>
+        </div>
+        <div class="card">
+          <h2>조사 목록</h2>
+          <div id="surveyList" class="list"></div>
+        </div>
+        <div id="surveyDetail" class="card hidden"></div>
+      </div>
+
+      <div id="tab-employees" class="tabpane hidden">
+        <div class="card">
+          <div class="row"><h2 class="grow">직원 관리</h2><button id="addEmployeeBtn" class="primary">+ 직원 추가</button></div>
+          <div id="employeeAdminList"></div>
+        </div>
+        <div id="employeeEditor" class="card hidden">
+          <h3 id="employeeEditorTitle">직원 추가</h3>
+          <div class="grid">
+            <div class="field"><label>팀</label><select id="empTeam"></select></div>
+            <div class="field"><label>이름</label><input id="empName"></div>
+          </div>
+          <div class="row"><button id="saveEmployeeBtn" class="primary">저장</button><button id="cancelEmployeeBtn">취소</button></div>
+        </div>
+      </div>
+
+      <div id="tab-newSurvey" class="tabpane hidden">
+        <form id="surveyCreateForm" class="card">
+          <h2>새 조사 만들기</h2>
+          <div class="field"><label>조사 제목</label><input id="newSurveyTitle" value="동계 근무복 사이즈 조사"></div>
+          <div class="field"><label>안내문</label><textarea id="newSurveyDesc" rows="2">근무복 사이즈를 선택해주세요.</textarea></div>
+          <div class="field"><label>응답 마감일</label><input id="newSurveyEnd" type="date"></div>
+          <div class="field"><label>질문 1</label><input id="q1Text" value="근무복 사이즈를 선택해주세요."></div>
+          <div class="field"><label>답변 방식</label>
+            <select id="q1Type"><option value="single">단일 선택</option><option value="multi">복수 선택</option><option value="text">직접 입력</option></select>
+          </div>
+          <div class="field" id="q1OptionsField"><label>선택지 (쉼표 구분)</label><input id="q1Options" value="90,95,100,105,110,115"></div>
+          <button type="submit" class="primary">조사 만들기</button>
+        </form>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="./config.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>
