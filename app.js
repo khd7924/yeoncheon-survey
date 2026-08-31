@@ -148,9 +148,10 @@
     $("adminSurveyCount").textContent=list.filter(s=>s.is_open).length+"건";
     $("surveyList").innerHTML=list.length?list.map(s=>`
       <div class="item"><div><strong>${s.title}</strong><br><span class="muted">${s.is_open?"진행 중":"마감"}</span></div>
-      <span><button class="viewSurvey" data-id="${s.id}">현황</button> <button class="copySurvey" data-id="${s.id}">링크</button></span></div>`).join(""):'<div class="muted">아직 조사가 없습니다.</div>';
+      <span><button class="viewSurvey" data-id="${s.id}">현황</button> <button class="copySurvey" data-id="${s.id}">링크</button><button class="deleteSurvey danger" data-id="${s.id}">삭제</button></span></div>`).join(""):'<div class="muted">아직 조사가 없습니다.</div>';
     document.querySelectorAll(".viewSurvey").forEach(b=>b.onclick=()=>loadSurveyDetail(b.dataset.id));
     document.querySelectorAll(".copySurvey").forEach(b=>b.onclick=()=>copySurveyLink(b.dataset.id));
+    document.querySelectorAll(".deleteSurvey").forEach(b=>b.onclick=()=>deleteSurvey(b.dataset.id));
   }
   async function copySurveyLink(id){
     const url=`${location.origin}${location.pathname}?survey=${id}`;
@@ -202,6 +203,32 @@
     const {error:qe}=await sb.from("questions").insert({survey_id:s.id,question_text:qtext,answer_type:qtype,options,sort_order:1});
     if(qe) return msg(qe.message,"err");
     await loadSurveyList(); switchTab("dashboard"); copySurveyLink(s.id);
+  }
+    async function deleteSurvey(id){
+  const surveyName =
+    document.querySelector(`.deleteSurvey[data-id="${id}"]`)
+      ?.closest(".item")
+      ?.querySelector("strong")
+      ?.textContent || "이 조사";
+
+  if(!confirm(
+    `${surveyName}을(를) 삭제하시겠습니까?\n\n` +
+    `조사와 해당 응답자료가 함께 삭제됩니다.\n` +
+    `삭제 후에는 복구할 수 없습니다.`
+  )) return;
+
+  const { error } = await sb
+    .from("surveys")
+    .delete()
+    .eq("id", id);
+
+  if(error){
+    return msg("조사 삭제 실패: " + error.message, "err");
+  }
+
+  $("surveyDetail").classList.add("hidden");
+  await loadSurveyList();
+     msg("조사를 삭제했습니다.");
   }
 
   function switchTab(name){
